@@ -1,5 +1,4 @@
 import os
-from langchain_community.document_loaders import TextLoader,DirectoryLoader
 from langchain_text_splitters import CharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings
 from langchain_chroma import Chroma
@@ -7,7 +6,6 @@ from dotenv import load_dotenv
 from pypdf import PdfReader
 from langchain_core.documents import Document
 
-dog = [12,123,34]
 load_dotenv()
 
 def load_documents(folder_path="docs"):
@@ -78,12 +76,8 @@ def main():
     # split documents into chunks
     chunks = split_documents(documents)
     #create vector store
-    vector_store = create_vector_store(chunks)
-
-    #query vector store
-   
+    create_vector_store(chunks)
 
 
-    
 if __name__ == "__main__":
     main()

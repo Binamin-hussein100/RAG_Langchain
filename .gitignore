@@ -133,6 +133,9 @@ env.bak/
 venv.bak/
 virtual
 
+# Generated vector store (rebuild with: python ingestion_pipeline.py)
+db/
+
 # Spyder project settings
 .spyderproject
 .spyproject

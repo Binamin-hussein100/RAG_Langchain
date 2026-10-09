@@ -1,97 +1,99 @@
 # RAG with LangChain
 
-A robust Retrieval-Augmented Generation (RAG) pipeline built using LangChain and Python. This repository demonstrates how to ingest private documents, embed them into a vector space, retrieve relevant context, and leverage Large Language Models (LLMs) to generate accurate, context-grounded responses.
+A small Retrieval-Augmented Generation (RAG) project built with LangChain. It ingests a set of PDF policy documents into a local Chroma vector store, then lets you chat with them from the terminal. Answers from OpenAI's `gpt-4o` are grounded in the retrieved chunks, and follow-up questions take the conversation history into account.
 
-## 🚀 Features
+## How it works
 
-- Document Ingestion & Splitting: Load and split text/PDF documents efficiently using LangChain text splitters.
-- Embeddings & Vector Search: Convert text into vector embeddings and index them using a vector database for high-performance similarity search.
-- Contextual Retrieval: Retrieve the most relevant chunks of information based on user queries.
-- LLM Integration: Chain retrieved documents with an LLM to generate precise and grounded answers, minimizing hallucinations.
+1. **Ingestion** (`ingestion_pipeline.py`)
+   - Reads every PDF in `docs/` page by page with `pypdf`, skipping empty pages. Each page becomes a LangChain `Document` with `source` and `page` metadata.
+   - Splits the pages into chunks with `CharacterTextSplitter` (`chunk_size=100`, `chunk_overlap=0`).
+   - Embeds the chunks with OpenAI `text-embedding-3-small` and persists them to Chroma at `db/chroma_db` (cosine similarity).
 
-## 🛠️ Tech Stack
+2. **History-aware chat** (`history_aware_generation.py`)
+   - From the second question onward, `gpt-4o` first rewrites your question into a standalone search query, using the chat history.
+   - Retrieves the top 3 matching chunks from Chroma and prints a preview of each.
+   - Sends the question and the retrieved chunks to `gpt-4o` (`temperature=0.2`). If the answer isn't in the documents, the model is told to say so.
+   - Appends each question and answer to the chat history.
 
-- Python (3.10+)
-- LangChain (Orchestration framework)
-- OpenAI / HuggingFace (LLMs & Embeddings)
-- Chroma / FAISS (Vector Store — update if using a different DB)
+## Tech stack
 
-## 📂 Project Structure
+- Python 3.9+
+- LangChain (`langchain-core`, `langchain-openai`, `langchain-chroma`, `langchain-text-splitters`)
+- OpenAI: `text-embedding-3-small` for embeddings, `gpt-4o` for generation
+- Chroma: a local, persistent vector store
+- pypdf: PDF text extraction
+
+## Project structure
 
 ```plaintext
-RAG_Langchain/
-│
-├── data/               # Source documents (PDFs, TXT, etc.)
-├── notebooks/          # Interactive Jupyter Notebooks (if applicable)
-├── src/                # Source code modules
-│   ├── ingest.py       # Document loading and embedding pipeline
-│   └── rag_chain.py    # Retrieval and generation logic
-├── .env.example        # Template for environment variables
-├── requirements.txt    # Python dependencies
-├── README.md           # Project documentation
-└── LICENSE             # License information
+Rag_p1/
+├── docs/                         # Source PDFs (sample B-Cubed policy documents)
+│   ├── b_cubed_data_security_policy.pdf
+│   ├── b_cubed_engineering_policy.pdf
+│   └── b_cubed_operations_leasing_policy.pdf
+├── db/chroma_db/                 # Generated vector store (git-ignored)
+├── ingestion_pipeline.py         # Load PDFs → chunk → embed → store in Chroma
+├── history_aware_generation.py   # Interactive RAG chat with conversation memory
+├── requirements.txt              # Python dependencies
+├── .env.example                  # Template for environment variables
+└── Readme.md
 ```
 
-## ⚙️ Getting Started
+## Getting started
 
-### 1. Clone the Repository
+### 1. Create a virtual environment
 
 ```bash
-git clone https://github.com/Binamin-hussein100/RAG_Langchain.git
-cd RAG_Langchain
+python3 -m venv virtual
+source virtual/bin/activate   # On Windows: virtual\Scripts\activate
 ```
 
-### 2. Create a Virtual Environment
-
-```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-```
-
-### 3. Install Dependencies
+### 2. Install dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### 4. Configure Environment Variables
-
-Create a `.env` file in the root directory by copying the example template:
+### 3. Set your OpenAI API key
 
 ```bash
 cp .env.example .env
 ```
 
-Add your API keys inside `.env`:
+Then edit `.env`:
 
 ```env
 OPENAI_API_KEY=your_openai_api_key_here
 ```
 
-## 💡 Usage
+## Usage
 
-Run the main script to start querying your documents:
+Run both scripts from the project root, because the vector store path `db/chroma_db` is relative to your current directory.
 
-```bash
-python src/rag_chain.py
-```
-
-Alternatively, if your project is notebook-based, launch Jupyter Notebook and open the workflow notebooks:
+### Build the vector store
 
 ```bash
-jupyter notebook
+python ingestion_pipeline.py
 ```
 
-## 🤝 Contributing
+To use your own documents, put PDFs in `docs/` and run this again. Running it again adds to the existing store instead of replacing it, so delete `db/chroma_db` first if you want a clean rebuild:
 
-Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
+```bash
+rm -rf db/chroma_db && python ingestion_pipeline.py
+```
 
-1. Fork the Project
-2. Create your Feature Branch (`git checkout -b feature/AmazingFeature`)
-3. Commit your Changes (`git commit -m 'Add some AmazingFeature'`)
-4. Push to the Branch (`git push origin feature/AmazingFeature`)
-5. Open a Pull Request
+### Chat with your documents
 
-## 📝 License
+```bash
+python history_aware_generation.py
+```
 
-Distributed under the MIT License. See `LICENSE` for more information.
+```text
+Ask me anything! Type 'exit' to quit.
+
+Your question: Which testing framework is the standard for front-end modules?
+...
+Your question: And what about backend services?
+```
+
+Type `exit` to quit.
